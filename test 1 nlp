@@ -1,0 +1,99 @@
+import pandas as pd
+from gensim.models import Word2Vec
+from tomotopy.coherence import Coherence 
+from collections import Counter
+from nltk.tokenize import word_tokenize
+nltk.download("punkt")
+from nltk.tokenize import TreebankWordDetokenizer
+from nltk import word_tokenize
+import tomotopy as tp
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+import spacy
+import tomotopy as tp
+from rich.console import Console
+from rich.table import Table
+
+
+
+
+path="/Users/umar/Downloads/NLP-orgs-markets-master/sampleData/tripadvisorReviews/hotel_reviews.csv"
+df=pd.read_csv(path)
+df.head()
+docs=word_tokenize(df['Review'][0])
+
+from collections import Counter, OrderedDict, defaultdict
+from nltk.tokenize import TreebankWordDetokenizer
+docs_tkns= [sorted(TreebankWordDetokenizer().tokenize(doc)) for doc in docs]
+
+corpus = tp.utils.Corpus()
+# populate the corpus
+for item in docs_tkns:
+    corpus.add_doc(words=item)
+# estimate a model with 10 topics
+lda = tp.LDAModel(k=10, corpus=corpus)
+# train the model
+for i in range(0, 100, 10):
+    lda.train(10)
+    print("Iteration: {}\tLog-likelihood: {}".format(i, lda.ll_per_word))
+
+
+# inspect the output of the LDA algorithm
+
+# create a Rich's table to print the output of the spaCy's pipeline
+console = Console()
+# defin table properties
+table = Table(
+    show_header=True,
+    header_style="cyan",
+    title="[bold] [cyan] Word to topic probabilities (top 10 words)[/cyan]",
+    width=150,
+)
+# add columns
+table.add_column("Topic", justify="center", style="cyan", width=10)
+table.add_column("W 1", width=12)
+table.add_column("W 2", width=12)
+table.add_column("W 3", width=12)
+table.add_column("W 4", width=12)
+table.add_column("W 5", width=12)
+table.add_column("W 6", width=12)
+table.add_column("W 7", width=12)
+table.add_column("W 8", width=12)
+table.add_column("W 9", width=12)
+table.add_column("W 10", width=12)
+# add rows
+for k in range(lda.k):
+    values = []
+    for word, prob in lda.get_topic_words(k):
+        values.append("{}\n({})\n".format(word, str(np.round(prob, 3))))       
+    table.add_row(
+        str(k),
+        values[0],
+        values[1],
+        values[2],
+        values[3],
+        values[4],
+        values[5],
+        values[6],
+        values[7],
+        values[8],
+        values[9],
+    )
+
+coh = tp.coherence.Coherence(lda, coherence="u_mass")
+average_coherence = coh.get_score()
+# topic coherence
+coherence_per_topic = [coh.get_score(topic_id=k) for k in range(lda.k)]
+# plot results
+fig = plt.figure()
+ax = fig.add_subplot(111)
+ax.bar(range(lda.k), coherence_per_topic)
+ax.set_xticks(range(lda.k))
+ax.set_xlabel("Topic number")
+ax.set_ylabel("Coherence score")
+plt.axhline(y=average_coherence, color="orange", linestyle="--")
+plt.show()
+
+
